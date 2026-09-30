@@ -36,19 +36,19 @@ As you can see precise version is required unfortunately.
 Setting dotnet version and locations:
 
 ```lua
-include("@addon/dotnet-cppcli/desc") -- for set_dotnet_sdk
+include("@addon/dotnet-cppcli/desc") -- for set_dotnet_options
 
 target("mytarget")
     add_rules("@addon/dotnet-cppcli/cppcli")
     ...
-    set_dotnet_sdk({
+    set_dotnet_options({
         version = "8.0",
         path = "C:\\myDotnetInstall"
     })
 ```
 
 Note that default values are set for these parameters in the addon itself, so if your target
-needs the same parameters then you don't need to call `set_dotnet_sdk`. By default
+needs the same parameters then you don't need to call `set_dotnet_options`. By default
 
 ```lua
 {
