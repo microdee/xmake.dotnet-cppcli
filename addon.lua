@@ -1,0 +1,5 @@
+addon("dotnet-cppcli")
+    set_homepage("https://github.com/microdee/xmake.dotnet-cppcli")
+    set_description("Compile and link C++ targets with CoreCLR features (C++/CLI, /clr:netcore). Supported only on Windows via MSVC.")
+    set_license("MIT")
+    add_deps("rats-utils")
