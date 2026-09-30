@@ -186,7 +186,7 @@ function on_config_cpp_cli(target)
     target:add("cxxflags", "/EHa")
     target:add("cxxflags", "/clr:netcore")
     target:add("cxxflags", "/clr:nostdlib")
-    target:add("linkdirs", _hostdir())
+    target:add("linkdirs", _hostdir().p)
     target:add("links", "ijwhost.lib")
 end
 
