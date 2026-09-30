@@ -1,4 +1,4 @@
-# dotnet-cppcli xmake addon
+# .NET C++/CLI xmake addon
 
 A simple [xmake](https://xmake.io) addon for compiling C++/CLI targeting CoreCLR or in English .NET 5+.
 
