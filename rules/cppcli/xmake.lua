@@ -34,6 +34,8 @@
 --       simpler to do, but of course it cannot take part in the xrepo package management systems
 --
 rule("cppcli")
+    add_deps("@addon/rats-utils/rsteps")
+    add_orders("@addon/rats-utils/rsteps", "@addon/dotnet-cppcli/cppcli")
     on_load(function (target)
         import("@self.cppcli").on_load_cpp_cli(target)
     end)
