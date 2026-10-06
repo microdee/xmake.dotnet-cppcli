@@ -62,3 +62,30 @@ needs the same parameters then you don't need to call `set_dotnet_options`. By d
 > C++/CLI only supports language versions up to C++ 20
 
 It would be ideal to use the built-in nuget package manager for C#, I wrote my own because I felt that was simpler to do, but of course it cannot take part in the xrepo package management systems.
+
+`cppcli` rule internally uses a [step-graph](https://github.com/microdee/xmake.rats-utils#rsteps) for its tasks, so others may hook into build actions at precise steps. Which are:
+
+```
+name                  invoked on
+                      
+nuget_install         (on_load)
+prepare               (on_config)
+use_system_assemblies (on_config)
+use_nuget_assemblies  (on_config)
+config                (on_config)
+after_build           (after_build)
+```
+
+For example
+
+```lua
+target("my-stuff")
+    ...
+    add_cppcli_step("install_lib", { triggered_by = "after_build"}, function(ctx)
+        local output = path.absolute("../lib/net" .. ctx.dotnet.version)
+        if os.exists(output) then
+            os.rmdir(output)
+        end
+        os.cp(path.absolute(ctx.target:targetdir()), output)
+    end)
+```
