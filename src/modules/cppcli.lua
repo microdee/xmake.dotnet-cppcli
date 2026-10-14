@@ -64,13 +64,13 @@ end
 function _dotnet:get_packages()
     if not self.xrepo_packages then
         self.xrepo_packages = {}
-        for name, pkg in pairs(target:pkgs()) do
+        for name, pkg in pairs(self.target:pkgs()) do
             local nuget_names = pkg:name():split("::")
             if nuget_names and #nuget_names == 2 then
                 table.append(self.xrepo_packages,
                 {
                     nuget_names[2],
-                    pkg:version_str()
+                    pkg:get("version"):replace("+", ".")
                 })
             end
         end
@@ -178,7 +178,7 @@ function _dotnet:nuget_use()
                     local b_sem = semver.match(path.filename(b))
                     return a_sem > b_sem
                 end)
-            self:fu_dir(target, candidates[1])
+            self:fu_dir(candidates[1])
         end
     end
 end
@@ -222,10 +222,10 @@ function declare_steps(target)
             json.savefile(p(ctx.target:targetdir()) / ctx.target:name() .. ".runtimeconfig.json",
             {
                 runtimeOptions = {
-                    tfm = "net" .. self.version,
+                    tfm = "net" .. ctx.dotnet.version,
                     framework = {
-                        name = _get_runtime(),
-                        version = self.version .. ".0"
+                        name = ctx.dotnet.runtime,
+                        version = ctx.dotnet.version .. ".0"
                     }
                 }
             })
