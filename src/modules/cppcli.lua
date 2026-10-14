@@ -197,6 +197,8 @@ function get(target)
     return target_dotnet
 end
 
+function main(...) return get(...) end
+
 function declare_steps(target)
     get(target).steps
         :add("nuget_install", {}, function(ctx) ctx.dotnet:nuget_install() end)
