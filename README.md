@@ -2,10 +2,20 @@
 
 A simple [xmake](https://xmake.io) addon for compiling C++/CLI targeting CoreCLR or in English .NET 5+.
 
+C++/CLI has its own limitations which has to be taken account in xmake as well:
+
+* Compiles on Windows only
+* Supports only compiling for Windows
+* Maximum language version supported is C++ 20 (since 2023)
+* Elaborate templating libraries like `range-v3` may break intellisense, still compiles though.
+
+## Install
+
 Through xrepo in your `xmake.lua`
 
 ```lua
-add_repositories("xrepo-md https://github.com/microdee/xmake-repo.git md") -- until it's not yet available in mainline xrepo
+-- until it's not yet available in mainline xrepo
+add_repositories("xrepo-md https://github.com/microdee/xmake-repo.git md")
 add_addons("dotnet-cppcli")
 ```
 
@@ -16,13 +26,15 @@ xmake addon --install github:microdee/xmake.rats-utils
 xmake addon --install github:microdee/xmake.dotnet-cppcli
 ```
 
-## Features
+## Nuget packages
 
-Handle including .NET system assemblies and manage nuget packages. For example:
+Besides handling .NET system assemblies this addon can use nuget packages as well. For example:
 
 ```lua
-add_requires("nuget::VL.Core 2025.7")
-add_requires("nuget::Stride.Core.Mathematics 4.3")
+add_requires(
+    "nuget::VL.Core 2025.7.4",
+    "nuget::Stride.Core.Mathematics 4.3.0"
+)
 
 target("mytarget")
     set_kind("shared")
@@ -35,7 +47,24 @@ target("mytarget")
     )
 ```
 
-As you can see precise version is required unfortunately.
+This may only support packages with 3-component semantic version `M.M.P` and which may not be pre-release. If pre-release is required or the package version gives you trouble then packages can be also set in script scope
+
+```lua
+target("mytarget")
+    ...
+    on_load(function(target)
+        import("@addon.dotnet-cppcli.cppcli")(target).packages =
+        {
+            { "VL.Core"                 , "2025.7.4"   },
+            { "Stride.Core.Mathematics" , "4.3.0.2507" }
+        }
+    end)
+```
+
+> [!NOTE]
+> A precise version is recommended in both cases since dotnet nuget defaults to zero missing version components instead of getting latest patch. Precise versions are required when setting packages in script scope.
+
+## dotnet options
 
 Setting dotnet version and locations:
 
@@ -54,21 +83,20 @@ needs the same parameters then you don't need to call either `set_values`. By de
 
 ```lua
 {
-    version = "10.0" -- indicating net10.0
+    version = "10.0", -- indicating net10.0
     runtime = "Microsoft.NETCore.App",
     path = nil, -- determined from system-installed dotnet SDK for given version if it's nil
 }
 ```
 
-> [!IMPORTANT]
-> C++/CLI only supports language versions up to C++ 20
+## Steps
 
 `cppcli` rule internally uses a [step-graph](https://github.com/microdee/xmake.rats-utils#rsteps) for its tasks, so others may hook into build actions at precise steps. Which are:
 
 ```
 name                  invoked on
                       
-nuget_install         (on_load)
+nuget_install         (after_load)
 prepare               (on_config)
 use_system_assemblies (on_config)
 use_nuget_assemblies  (on_config)
@@ -81,11 +109,19 @@ For example
 ```lua
 target("my-stuff")
     ...
-    add_cppcli_step("install_lib", { triggered_by = "after_build"}, function(ctx)
-        local output = path.absolute("../lib/net" .. ctx.dotnet.version)
-        if os.exists(output) then
-            os.rmdir(output)
-        end
-        os.cp(path.absolute(ctx.target:targetdir()), output)
+    on_load(function(target)
+        import("@addon.dotnet-cppcli.cppcli")(target).steps
+            :add("install_lib",
+                { triggered_by = "after_build"},
+                function(ctx)
+                    -- do something
+                end
+            )
+            :add("cursed_thing",
+                { dependent_for = "use_system_assemblies" }
+                function(ctx)
+                    -- idk do something with dotnet I guess
+                end
+            )
     end)
 ```
