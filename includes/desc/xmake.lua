@@ -10,29 +10,6 @@ function add_cppcli_sequence(...)
 end
 
 --!
--- Usage:
--- @code
--- include("@addon/dotnet-cppcli/desc")
--- 
--- target("mytarget")
---     ...
---     add_nuget_packages(
---         {"VL.Core", "2026.8.0-0131-g2f3a63d2aa"},
---         {"Stride.Core.Mathematics", "4.3.0.2507"}
---     )
--- @endcode
--- 
--- @warning This only works when this addon is installed manually before invoking an xmake.lua
---          depending on this addon
---
--- @todo Support nuget packages which ship assemblies for earlier versions of .NET, if they don't
---       have assemblies for exactly the version that is used by the target.
---
-function add_nuget_packages(...)
-    add_values("dotnet.nuget_packages", ...)
-end
-
---!
 -- Setting dotnet version:
 -- @code
 -- include("@addon/dotnet-cppcli/desc")

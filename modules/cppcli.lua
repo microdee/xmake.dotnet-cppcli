@@ -13,7 +13,8 @@ _dotnet = {
 
     dll_refs = {},
     steps = nil,
-    target = nil
+    target = nil,
+    xrepo_packages = nil
 }
 
 function _dotnet:new(target)
@@ -60,6 +61,23 @@ function _dotnet:refdir()
     return self:get_path() / "packs" / (self.runtime .. ".Ref")
 end
 
+function _dotnet:get_packages()
+    if not self.xrepo_packages then
+        self.xrepo_packages = {}
+        for name, pkg in pairs(target:pkgs()) do
+            local nuget_names = pkg:name():split("::")
+            if nuget_names and #nuget_names == 2 then
+                table.append(self.xrepo_packages,
+                {
+                    nuget_names[2],
+                    pkg:version_str()
+                })
+            end
+        end
+    end
+    return table.join(self.packages, self.xrepo_packages)
+end
+
 function _dotnet:get_versionsubdir(parentdir)
     local dirs = os.dirs(p(parentdir) / self.version .. "*")
     if #dirs == 0 then return nil end
@@ -93,7 +111,7 @@ function _dotnet:nuget_install()
         http.download("https://dist.nuget.org/win-x86-commandline/latest/nuget.exe", nuget)
     end
 
-    for _, package in ipairs(self.packages) do
+    for _, package in ipairs(self:get_packages()) do
         print("Installing nuget package " .. package[1] .. " " .. package[2])
         os.execv(nuget,
         {

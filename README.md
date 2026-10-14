@@ -21,14 +21,15 @@ xmake addon --install github:microdee/xmake.dotnet-cppcli
 Handle including .NET system assemblies and manage nuget packages. For example:
 
 ```lua
-include("@addon/dotnet-cppcli/desc") -- for add_nuget_packages
+add_requires("nuget::VL.Core 2025.7")
+add_requires("nuget::Stride.Core.Mathematics 4.3")
 
 target("mytarget")
     add_rules("@addon/dotnet-cppcli/cppcli")
     ...
-    add_nuget_packages(
-        { "VL.Core",                 "2026.8.0-0131-g2f3a63d2aa" },
-        { "Stride.Core.Mathematics", "4.3.0.2507"                }
+    add_packages(
+        "nuget::VL.Core",
+        "nuget::Stride.Core.Mathematics"
     )
 ```
 
@@ -42,14 +43,12 @@ include("@addon/dotnet-cppcli/desc") -- for set_dotnet_options
 target("mytarget")
     add_rules("@addon/dotnet-cppcli/cppcli")
     ...
-    set_dotnet_options({
-        version = "8.0",
-        path = "C:\\myDotnetInstall"
-    })
+    set_values("dotnet.version", "8.0")
+    set_values("dotnet.path", [[C:\myDotnetInstall]])
 ```
 
 Note that default values are set for these parameters in the addon itself, so if your target
-needs the same parameters then you don't need to call `set_dotnet_options`. By default
+needs the same parameters then you don't need to call either `set_values`. By default
 
 ```lua
 {
@@ -61,8 +60,6 @@ needs the same parameters then you don't need to call `set_dotnet_options`. By d
 
 > [!IMPORTANT]
 > C++/CLI only supports language versions up to C++ 20
-
-It would be ideal to use the built-in nuget package manager for C#, I wrote my own because I felt that was simpler to do, but of course it cannot take part in the xrepo package management systems.
 
 `cppcli` rule internally uses a [step-graph](https://github.com/microdee/xmake.rats-utils#rsteps) for its tasks, so others may hook into build actions at precise steps. Which are:
 
