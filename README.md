@@ -2,17 +2,18 @@
 
 A simple [xmake](https://xmake.io) addon for compiling C++/CLI targeting CoreCLR or in English .NET 5+.
 
-Manual installation before it gets canonized in XRepo:
+Through xrepo in your `xmake.lua`
+
+```lua
+add_repositories("xrepo-md https://github.com/microdee/xmake-repo.git md") -- until it's not yet available in mainline xrepo
+add_addons("dotnet-cppcli")
+```
+
+Or manual installation:
 
 ```
 xmake addon --install github:microdee/xmake.rats-utils
 xmake addon --install github:microdee/xmake.dotnet-cppcli
-```
-
-Once it's available on xrepo you can just do
-
-```lua
-add_addons("dotnet-cppcli")
 ```
 
 ## Features

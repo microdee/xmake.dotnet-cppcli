@@ -5,43 +5,63 @@ import("@addon.rats-utils.rtable", {alias = "t"})
 import("@addon.rats-utils.rpath", {alias = "p"})
 import("@addon.rats-utils.rsteps")
 
-_default_dotnet_options = {
+_dotnet = {
     path = nil,
     runtime = "Microsoft.NETCore.App",
-    version = "10.0"
+    version = "10.0",
+    packages = {},
+
+    dll_refs = {},
+    steps = nil,
+    target = nil
 }
 
-_dotnet_options = nil
+function _dotnet:new(target)
+    local result = _dotnet | t.clone(100)
+    result.target = target
+    result.version = target:values("dotnet.version") or result.version
+    result.runtime = target:values("dotnet.runtime") or result.runtime
+    result.path = target:values("dotnet.path") or result.path
+    result.steps = rsteps.get(target, "cppcli")
+    result.steps.context.dotnet = result
+    print(".NET:")
+    print({
+        result.runtime,
+        result.version,
+        result.path
+    })
+    return result
+end
 
-function _get_path()
-    if not _dotnet_options.path then
+function _dotnet:get_path()
+    if not self.path then
         local dotnet_out = os.iorun("dotnet --list-sdks"):split("\n")
         local line = dotnet_out
             | t.filter(function (i, v)
-                    return v:find("^" .. _dotnet_options.version)
+                    return v:find("^" .. self.version)
             end)
             | t.last()
         local _, _, dotnet_path = line:find("%[(.+)%]")
-        _dotnet_options.path = path.directory(dotnet_path)
+        self.path = path.directory(dotnet_path)
     end
-    if _dotnet_options.path:find(" ", 1, true) then
+    if self.path:find(" ", 1, true) then
         local link = vformat("$(tmpdir)/dotnet")
         if not os.exists(link) then
-            os.ln(_dotnet_options.path, link)
+            os.ln(self.path, link)
         else
             assert(os.islink(link))
         end
-        _dotnet_options.path = link
+        self.path = link
     end
-    return p(_dotnet_options.path)
+    return p(self.path)
 end
 
-function _refdir()
-    return _get_path() / "packs" / (_dotnet_options.runtime .. ".Ref")
+function _dotnet:refdir()
+    return self:get_path() / "packs" / (self.runtime .. ".Ref")
 end
 
-function _get_versionsubdir(parentdir)
-    local dirs = os.dirs(p(parentdir) / _dotnet_options.version .. "*")
+function _dotnet:get_versionsubdir(parentdir)
+    local dirs = os.dirs(p(parentdir) / self.version .. "*")
     if #dirs == 0 then return nil end
     if #dirs == 1 then return p(dirs[1]) end
     local latest_version = semver.new("0.0.0")
@@ -56,30 +76,16 @@ function _get_versionsubdir(parentdir)
     return p(result)
 end
 
-function _get_version()
-    return _dotnet_options.version
+function _dotnet:assemblydir()
+    return self:get_versionsubdir(self:refdir()) / ("ref/net" .. self.version)
 end
 
-function _get_runtime()
-    return _dotnet_options.runtime
+function _dotnet:hostdir()
+    local hostmain = self:get_path() / "packs" / (self.runtime .. ".Host.win-x64")
+    return self:get_versionsubdir(hostmain) / "runtimes/win-x64/native"
 end
 
-function _assemblydir()
-    return _get_versionsubdir(_refdir()) / ("ref/net" .. _get_version())
-end
-
-function _hostdir()
-    local hostmain = _get_path() / "packs" / (_dotnet_options.runtime .. ".Host.win-x64")
-    return _get_versionsubdir(hostmain) / "runtimes/win-x64/native"
-end
-
-function cppcli_steps(target)
-    local steps = rsteps.get_steps(target, "cppcli")
-    steps.context.dotnet = _dotnet_options
-    return steps
-end
-
-function _nuget_install(packages)
+function _dotnet:nuget_install()
     local nuget = vformat("$(builddir)/nuget/nuget.exe")
     if not os.exists(nuget) then
         import("net.http")
@@ -87,66 +93,64 @@ function _nuget_install(packages)
         http.download("https://dist.nuget.org/win-x86-commandline/latest/nuget.exe", nuget)
     end
 
-    for _, package in ipairs(packages) do
+    for _, package in ipairs(self.packages) do
         print("Installing nuget package " .. package[1] .. " " .. package[2])
         os.execv(nuget,
         {
             "install", package[1],
             "-Version", package[2],
-            "-Framework", "net" .. _get_version(),
+            "-Framework", "net" .. self.version,
             "-NonInteractive",
             "-OutputDirectory", vformat("$(builddir)/nuget")
         })
     end
 end
 
-_dotnet_dll_refs = {}
-
-function _fu(target, dll)
+function _dotnet:fu(dll)
     if not os.exists(dll) then
         print(dll .. " didn't exist")
         return
     end
-    if _dotnet_dll_refs | t.contains(path.filename(dll)) then return end
+    if self.dll_refs | t.contains(path.filename(dll)) then return end
 
     local abs_dll = p.resolve(dll)
     print("Using dll " .. abs_dll)
-    target:add("cxxflags", "/FU" .. abs_dll)
+    self.target:add("cxxflags", "/FU" .. abs_dll)
 
-    table.append(_dotnet_dll_refs, path.filename(dll))
+    table.append(self.dll_refs, path.filename(dll))
 end
 
-function _fu_dir(target, dir)
+function _dotnet:fu_dir(dir)
     local dlls = os.files(path.join(dir, "*.dll"))
     for _, dll in ipairs(dlls) do
-        _fu(target, dll)
+        self:fu(dll)
     end
 end
 
-function _ai(target, dir)
+function _dotnet:ai(dir)
     if not os.exists(dir) then
         print(dir .. " didn't exist")
         return
     end
     local abs_dir = p.resolve(dir);
     print("Using directory: " .. abs_dir)
-    target:add("cxxflags", "/AI" .. abs_dir)
+    self.target:add("cxxflags", "/AI" .. abs_dir)
 end
 
-function _nuget_use(target)
+function _dotnet:nuget_use()
     local prefixes = {
         "netstandard",
         "net"
     }
     for _, package in ipairs(os.dirs("$(builddir)/nuget/*")) do
-        _fu_dir(target, p(package) / "lib/net" .. _dotnet_options.version)
+        self:fu_dir(p(package) / "lib/net" .. self.version)
 
         for _, prefix in ipairs(prefixes) do
             local candidates = os.dirs(p(package) / "lib" / prefix .. "*")
                 | t.filter(function(i, v)
                     local dir_version = semver.match(path.filename(v))
                     if dir_version and prefix == "net" then
-                        return dir_version < _get_version()
+                        return dir_version < self.version
                     else
                         return dir_version
                     end
@@ -156,74 +160,56 @@ function _nuget_use(target)
                     local b_sem = semver.match(path.filename(b))
                     return a_sem > b_sem
                 end)
-            _fu_dir(target, candidates[1])
+            self:fu_dir(target, candidates[1])
         end
     end
 end
 
-function _config_system(target)
-    _ai(target, _assemblydir().p)
-    _fu_dir(target, _assemblydir().p)
+function _dotnet:config_system()
+    self:ai(self:assemblydir().p)
+    self:fu_dir(self:assemblydir().p)
 end
 
-function _set_dotnet_options(target)
-    _dotnet_options = _default_dotnet_options | t.clone();
-    for key, value in pairs(_dotnet_options) do
-        _dotnet_options[key] = target:values("dotnet." .. key) or value
+function get(target)
+    local target_dotnet = target:data("dotnet.cppcli")
+    if not target_dotnet then
+        target_dotnet = _dotnet:new(target)
+        target:data_set("dotnet.cppcli", target_dotnet)
     end
-    print(".NET options:")
-    print(_dotnet_options)
+    return target_dotnet
 end
 
-function on_load_cpp_cli(target)
-    _set_dotnet_options(target)
-    local steps = cppcli_steps(target)
-    steps:add("nuget_install", {}, function(ctx)
-        local packages = ctx.target:values("dotnet.nuget_packages") | t.wrap()
-        _nuget_install(packages)
-    end)
-    steps:invoke("nuget_install")
+function declare_steps(target)
+    get(target).steps
+        :add("nuget_install", {}, function(ctx) ctx.dotnet:nuget_install() end)
+        :add_sequence("", { depend = true },
+            {"prepare", function(ctx)
+                ctx.target:set("policy", "check.auto_ignore_flags", false)
+                ctx.target:set("runtimes", "MD")
+            end},
+            {"use_system_assemblies", function(ctx) ctx.dotnet:config_system() end},
+            {"use_nuget_assemblies", function(ctx) ctx.dotnet:nuget_use() end},
+            {"config", function(ctx)
+                ctx.target:set("exceptions", "none")
+                ctx.target:add("cxxflags", "/EHa")
+                ctx.target:add("cxxflags", "/clr:netcore")
+                ctx.target:add("cxxflags", "/clr:nostdlib")
+                ctx.target:add("linkdirs", ctx.dotnet:hostdir().p)
+                ctx.target:add("links", "ijwhost.lib")
+            end}
+        )
+        :add("after_build", {}, function(ctx)
+            os.cp(ctx.dotnet:hostdir() / "ijwhost.dll".."", p(ctx.target:targetdir()) / "ijwhost.dll".."")
 
-    steps:with_sequence("", {},
-        {"prepare", function(ctx)
-            _dotnet_dll_refs = {}
-            ctx.target:set("policy", "check.auto_ignore_flags", false)
-            ctx.target:set("runtimes", "MD")
-        end},
-        {"use_system_assemblies", function(ctx) _config_system(ctx.target) end},
-        {"use_nuget_assemblies", function(ctx) _nuget_use(ctx.target) end},
-        {"config", function(ctx)
-            ctx.target:set("exceptions", "none")
-            ctx.target:add("cxxflags", "/EHa")
-            ctx.target:add("cxxflags", "/clr:netcore")
-            ctx.target:add("cxxflags", "/clr:nostdlib")
-            ctx.target:add("linkdirs", _hostdir().p)
-            ctx.target:add("links", "ijwhost.lib")
-        end}
-    )
-
-    steps:add("after_build", {}, function(ctx)
-        os.cp(_hostdir() / "ijwhost.dll".."", p(ctx.target:targetdir()) / "ijwhost.dll".."")
-
-        json.savefile(p(ctx.target:targetdir()) / ctx.target:name() .. ".runtimeconfig.json",
-        {
-            runtimeOptions = {
-                tfm = "net" .. _get_version(),
-                framework = {
-                    name = _get_runtime(),
-                    version = _get_version() .. ".0"
+            json.savefile(p(ctx.target:targetdir()) / ctx.target:name() .. ".runtimeconfig.json",
+            {
+                runtimeOptions = {
+                    tfm = "net" .. self.version,
+                    framework = {
+                        name = _get_runtime(),
+                        version = self.version .. ".0"
+                    }
                 }
-            }
-        })
-    end)
-end
-
-function on_config_cpp_cli(target)
-    _set_dotnet_options(target)
-    cppcli_steps(target):invoke("config")
-end
-
-function after_build_cpp_cli(target)
-    _set_dotnet_options(target)
-    cppcli_steps(target):invoke("after_build")
+            })
+        end)
 end

@@ -21,6 +21,9 @@ end
 --         {"Stride.Core.Mathematics", "4.3.0.2507"}
 --     )
 -- @endcode
+-- 
+-- @warning This only works when this addon is installed manually before invoking an xmake.lua
+--          depending on this addon
 --
 -- @todo Support nuget packages which ship assemblies for earlier versions of .NET, if they don't
 --       have assemblies for exactly the version that is used by the target.
@@ -40,6 +43,9 @@ end
 -- @endcode
 -- Note that default values are set for these parameters in the addon itself, so if your target
 -- needs the same parameters then you don't need to call `set_dotnet_*` functions at all
+-- 
+-- @warning This only works when this addon is installed manually before invoking an xmake.lua
+--          depending on this addon
 --
 function set_dotnet_version(input)
     set_values("dotnet.version", input)
@@ -56,6 +62,9 @@ end
 -- @endcode
 -- Note that default values are set for these parameters in the addon itself, so if your target
 -- needs the same parameters then you don't need to call `set_dotnet_*` functions at all
+-- 
+-- @warning This only works when this addon is installed manually before invoking an xmake.lua
+--          depending on this addon
 --
 function set_dotnet_runtime(input)
     set_values("dotnet.runtime", input)
@@ -72,6 +81,9 @@ end
 -- @endcode
 -- Note that default values are set for these parameters in the addon itself, so if your target
 -- needs the same parameters then you don't need to call `set_dotnet_*` functions at all
+-- 
+-- @warning This only works when this addon is installed manually before invoking an xmake.lua
+--          depending on this addon
 --
 function set_dotnet_path(input)
     set_values("dotnet.path", input)
