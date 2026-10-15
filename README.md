@@ -14,17 +14,23 @@ C++/CLI has its own limitations which has to be taken account in xmake as well:
 Through xrepo in your `xmake.lua`
 
 ```lua
--- until it's not yet available in mainline xrepo
-add_repositories("xrepo-md https://github.com/microdee/xmake-repo.git md")
 add_addons("dotnet-cppcli")
 ```
 
-Or manual installation:
+<details><summary>Or manual installation:</summary>
+
+```
+xmake addon --install dotnet-cppcli
+```
+
+Or even more manual installation:
 
 ```
 xmake addon --install github:microdee/xmake.rats-utils
 xmake addon --install github:microdee/xmake.dotnet-cppcli
 ```
+
+</details>
 
 ## Nuget packages
 
@@ -69,8 +75,6 @@ target("mytarget")
 Setting dotnet version and locations:
 
 ```lua
-include("@addon/dotnet-cppcli/desc") -- for set_dotnet_options
-
 target("mytarget")
     add_rules("@addon/dotnet-cppcli/cppcli")
     ...
